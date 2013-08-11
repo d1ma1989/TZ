@@ -8,7 +8,7 @@ public class Sphere : MonoBehaviour
 
     private int _points;
 
-    public event System.Action<int> Destroyed;
+    public event System.Action<int, Color, Vector3> Destroyed;
 
     private void Start()
     {
@@ -27,7 +27,7 @@ public class Sphere : MonoBehaviour
     private void OnMouseDown()
     {
         if (Destroyed != null)
-            Destroyed(_points);
+            Destroyed(_points, renderer.material.color, _transform.position);
 
         Destroy(gameObject);
     }

@@ -9,9 +9,11 @@ public class GameController : MonoBehaviour
     [SerializeField]
     private GUIText _pointsText;
 
+    //variables for copying loaded resources
     private GameObject _sphere;
     private AudioClip _backgroundMusic;
     private AudioClip _destroySound;
+    private GameObject _explosionPs;
 
     private int _points;
 
@@ -52,7 +54,7 @@ public class GameController : MonoBehaviour
         int leftXpos = -300 + (int)(randomSize * 0.5f);
         int rightXpos = 300 - (int)(randomSize * 0.5f);
         int randomXpos = Random.Range(leftXpos, rightXpos);
-        _sphere.transform.localScale = new Vector3(randomSize, randomSize, randomSize);
+        _sphere.transform.localScale = new Vector3(randomSize, randomSize, 1);
        
         GameObject newSphere = Instantiate(_sphere, new Vector3(randomXpos, 300, 500), Quaternion.identity) as GameObject;
 
@@ -60,10 +62,20 @@ public class GameController : MonoBehaviour
 
         Sphere sphereComponent = newSphere.GetComponent<Sphere>();
         sphereComponent.CalculateSpeedAndPoints(randomSize, _difficultyLevel);
-        sphereComponent.Destroyed += delegate(int points)
+
+        //when circle is destroyed we made explositon effect
+        sphereComponent.Destroyed += delegate(int points, Color color, Vector3 pos)
         {
-            Points += points;
+            //play explosion sound
             AudioSource.PlayClipAtPoint(_destroySound, Vector3.zero);
+
+            //instantiate gameObject with explosion particle system
+            _explosionPs.particleSystem.startColor = color;
+            GameObject explosion = Instantiate(_explosionPs, pos, Quaternion.identity) as GameObject;
+            Destroy(explosion, 1f);
+
+            //give points and increase game difficulty
+            Points += points;
             _difficultyLevel = (Points / 100) + 1;
         };
     }
@@ -93,7 +105,11 @@ public class GameController : MonoBehaviour
     //Loading objects from an AssetBundles asynchronously
     private IEnumerator LoadingResources()
     {
-        AssetBundleRequest request = AssetBundleLoader.LoadedBundle.LoadAsync("Blast", typeof(AudioClip));
+        AssetBundleRequest request = AssetBundleLoader.LoadedBundle.LoadAsync("ExplosionPs", typeof(GameObject));
+        yield return request;
+        _explosionPs = request.asset as GameObject;
+
+        request = AssetBundleLoader.LoadedBundle.LoadAsync("Blast", typeof(AudioClip));
         yield return request;
         _destroySound = request.asset as AudioClip;
 
