@@ -40,7 +40,7 @@ public class GameController : MonoBehaviour
     {
         while (true)
         {
-            yield return new WaitForSeconds(2f);
+            yield return new WaitForSeconds(2f / _difficultyLevel);
             CreateSphere();
         }
     }
@@ -64,7 +64,7 @@ public class GameController : MonoBehaviour
         {
             Points += points;
             AudioSource.PlayClipAtPoint(_destroySound, Vector3.zero);
-            ChangeDifficulty();
+            _difficultyLevel = (Points / 100) + 1;
         };
     }
 
@@ -77,12 +77,6 @@ public class GameController : MonoBehaviour
             _points = value;
             _pointsText.text = "Points: " + _points;
         }
-    }
-
-    private void ChangeDifficulty()
-    {
-        _difficultyLevel = (int)(Points / 100) + 1;
-        print(_difficultyLevel);
     }
 
     private static Color MakeRandomColor()
