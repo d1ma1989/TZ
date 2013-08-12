@@ -1,6 +1,7 @@
 ﻿using System;
 using UnityEngine;
 using System.Collections;
+using Object = UnityEngine.Object;
 
 public class AssetBundleLoader : MonoBehaviour
 {
@@ -27,7 +28,7 @@ public class AssetBundleLoader : MonoBehaviour
 
             if (www.error != null)
                 throw new Exception("WWW download had an error:" + www.error);
-
+           
            LoadedBundle = www.assetBundle;
 
             // Frees the memory from the stream

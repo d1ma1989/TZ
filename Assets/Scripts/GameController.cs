@@ -149,6 +149,8 @@ public class GameController : MonoBehaviour
         _backgroundMusic = request.asset as AudioClip;
 
         AssetBundleLoader.LoadedBundle.Unload(false);
+
+        yield return new WaitForEndOfFrame();
     }
 
     private void CreateTextures()
