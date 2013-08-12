@@ -15,19 +15,29 @@ public class GameController : MonoBehaviour
     private AudioClip _destroySound;
     private GameObject _explosionPs;
 
+    private Material _sphereMaterial;
+
     private int _points;
 
     //speed coefficient
     private int _difficultyLevel = 1;
 
+    private Color _currentColor;
+
+    Texture2D[] _textures = new Texture2D[4];
+
     private IEnumerator Start()
     {
         yield return StartCoroutine(LoadingResources());
+
+        _sphereMaterial = _sphere.renderer.material;
 
         audio.clip = _backgroundMusic;
         audio.Play();
 
         _sphere.AddComponent<Sphere>();
+
+        CreateTextures();
 
         StartCoroutine(SpawningSpheres());
     }
@@ -38,6 +48,7 @@ public class GameController : MonoBehaviour
         _timerText.text = "Time: " + (int)Time.timeSinceLevelLoad;
     }
 
+    //spawning spheres with delay depending on difficulty
     private IEnumerator SpawningSpheres()
     {
         while (true)
@@ -55,28 +66,44 @@ public class GameController : MonoBehaviour
         int rightXpos = 300 - (int)(randomSize * 0.5f);
         int randomXpos = Random.Range(leftXpos, rightXpos);
         _sphere.transform.localScale = new Vector3(randomSize, randomSize, 1);
+
+        float xScale = _sphere.transform.localScale.x;
+
+        if (xScale >= 30 && xScale < 40)
+            _sphereMaterial.mainTexture = _textures[0];
+        else if (xScale >= 40 && xScale < 60)
+            _sphereMaterial.mainTexture = _textures[1];
+        else if (xScale >= 60 && xScale < 80)
+            _sphereMaterial.mainTexture = _textures[2];
+        else if (xScale >= 80 && xScale < 100)
+            _sphereMaterial.mainTexture = _textures[3];
        
         GameObject newSphere = Instantiate(_sphere, new Vector3(randomXpos, 300, 500), Quaternion.identity) as GameObject;
-
-        newSphere.renderer.material.color = MakeRandomColor();
+        print(newSphere.renderer.material.mainTexture.height);
 
         Sphere sphereComponent = newSphere.GetComponent<Sphere>();
         sphereComponent.CalculateSpeedAndPoints(randomSize, _difficultyLevel);
 
         //when circle is destroyed we made explositon effect
-        sphereComponent.Destroyed += delegate(int points, Color color, Vector3 pos)
+        sphereComponent.Destroyed += delegate(int points, Vector3 pos)
         {
             //play explosion sound
             AudioSource.PlayClipAtPoint(_destroySound, Vector3.zero);
 
             //instantiate gameObject with explosion particle system
-            _explosionPs.particleSystem.startColor = color;
+            _explosionPs.particleSystem.startColor = _currentColor;
             GameObject explosion = Instantiate(_explosionPs, pos, Quaternion.identity) as GameObject;
             Destroy(explosion, 1f);
 
             //give points and increase game difficulty
             Points += points;
-            _difficultyLevel = (Points / 100) + 1;
+
+            int newDifficulty = Points / 100 + 1;
+            if (newDifficulty > _difficultyLevel)
+            {
+                _difficultyLevel = newDifficulty;
+                CreateTextures();
+            }
         };
     }
 
@@ -122,5 +149,32 @@ public class GameController : MonoBehaviour
         _backgroundMusic = request.asset as AudioClip;
 
         AssetBundleLoader.LoadedBundle.Unload(false);
+    }
+
+    private void CreateTextures()
+    {
+        _currentColor = MakeRandomColor();
+        print(_currentColor);
+
+        _textures[0] = new Texture2D(32, 32, TextureFormat.ARGB32, false);
+        _textures[1] = new Texture2D(64, 64, TextureFormat.ARGB32, false);
+        _textures[2] = new Texture2D(128, 128, TextureFormat.ARGB32, false);
+        _textures[3] = new Texture2D(256, 256, TextureFormat.ARGB32, false);
+
+        foreach (Texture2D texture in _textures)
+        {
+            int y = 0;
+            while (y < texture.height)
+            {
+                int x = 0;
+                while (x < texture.width)
+                {
+                    texture.SetPixel(x, y, _currentColor);
+                    x++;
+                }
+                y++;
+            }
+            texture.Apply();
+        }
     }
 }
