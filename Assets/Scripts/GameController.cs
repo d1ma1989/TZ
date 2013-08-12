@@ -53,7 +53,7 @@ public class GameController : MonoBehaviour
     {
         while (true)
         {
-            yield return new WaitForSeconds(2f / _difficultyLevel);
+            yield return new WaitForSeconds(3f / _difficultyLevel);
             CreateSphere();
         }
     }
@@ -169,7 +169,11 @@ public class GameController : MonoBehaviour
                 int x = 0;
                 while (x < texture.width)
                 {
-                    texture.SetPixel(x, y, _currentColor);
+                    if (x == y || x + y == texture.height)
+                        texture.SetPixel(x, y, Color.black);
+                    else
+                        texture.SetPixel(x, y, _currentColor);
+
                     x++;
                 }
                 y++;
