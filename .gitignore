@@ -12,6 +12,9 @@ Library/expandedItems
 Library/metadata
 Library/previews
 Library/guidmapper
+obj/
+_ReSharper*/
 Temp
 *.pidb
 build
+
