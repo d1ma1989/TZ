@@ -1,40 +1,43 @@
 ﻿using UnityEngine;
 
-public class Sphere : MonoBehaviour
-{
-    private Transform _transform;
+using System;
 
-    private float _speed;
+public class Sphere : MonoBehaviour {
+	private Transform _transform;
 
-    private int _points;
+	private float _moveSpeed;
+	private float _rotationSpeed;
+	private int _points;
 
-    public event System.Action<int, Vector3> Destroyed;
+	public Color Color;
 
-    private void Start()
-    {
-        //caching transform component
-        _transform = transform;
-    }
+	public event Action<int, Vector3, Color> Destroyed;
 
-    private void Update()
-    {
-        _transform.Translate(Vector3.down * _speed * Time.deltaTime, Space.World);
+	private void Start() {
+		_transform = transform;
+		_rotationSpeed = 100f * Time.deltaTime;
+	}
 
-        if (_transform.position.y < -225f)
-            Destroy(gameObject);
-    }
+	private void Update() {
+		_transform.Translate(Vector3.down * _moveSpeed * Time.deltaTime, Space.World);
+		_transform.Rotate(Vector3.up, _rotationSpeed);
+		_transform.Rotate(Vector3.forward, _rotationSpeed);
+	}
 
-    private void OnMouseDown()
-    {
-        if (Destroyed != null)
-            Destroyed(_points, _transform.position);
+	private void OnBecameInvisible() {
+		Destroy(gameObject);
+	}
 
-        Destroy(gameObject);
-    }
+	private void OnMouseDown() {
+		if (Destroyed != null) {
+			Destroyed(_points, _transform.position, Color);
+		}
 
-    public void CalculateSpeedAndPoints(float size, int difficulty)
-    {
-        _points = (int)(1000 / size);
-        _speed = (int)(5000 / size) * difficulty;
-    }
+		Destroy(gameObject);
+	}
+
+	public void CalculateSpeedAndPoints(float size, int difficulty) {
+		_points = (int)(1000 / size);
+		_moveSpeed = _points * 7 * difficulty;
+	}
 }

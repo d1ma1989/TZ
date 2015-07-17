@@ -1,49 +1,39 @@
 ﻿using UnityEngine;
+
 using System.Collections;
 
-public class StartSceneController : MonoBehaviour
-{
-    [SerializeField]
-    private AssetBundleLoader _bundleLoader;
+public class StartSceneController : MonoBehaviour {
+	[SerializeField] private AssetBundleLoader _bundleLoader;
+	[SerializeField] private GUIText _loadingText;
+	[SerializeField] private GameObject _spaceBackgroundGO;
 
-    [SerializeField]
-    private GUIText _loadingText;
+	private bool _bundlesLoaded;
 
-    private bool _bundleIsLoaded;
-	
-	void Start() 
-    {
-	    _bundleLoader.Loaded += delegate
-	    {
-	        _loadingText.text = "Press any key to start";
-	        StartCoroutine(BlinkingText());
+	private void Start() {
+		DontDestroyOnLoad(_spaceBackgroundGO);
+		DontDestroyOnLoad(Camera.main);
+		_bundleLoader.Loaded += () => {
+			_loadingText.text = "Press space to start";
+			_bundlesLoaded = true;
+			StartCoroutine(BlinkingText());
+		};
 
-            //after bundle is loaded we can start game
-	        _bundleIsLoaded = true;
-	    };
+		StartCoroutine(_bundleLoader.DownloadAndCache());
 	}
-	
-	void Update()
+
+	private IEnumerator BlinkingText()
 	{
-	    if (!_bundleIsLoaded)
-	        return;
-
-        //starting game by any key being down
-        if (Input.anyKeyDown)
-            Application.LoadLevel("Play");
+		GameObject textGobj = _loadingText.gameObject;
+		while (true)
+		{
+			yield return new WaitForSeconds(0.5f);
+			textGobj.SetActive(!textGobj.activeInHierarchy);
+		}
 	}
 
-    //after loading bundle text on screen begins blinking
-    private IEnumerator BlinkingText()
-    {
-        GameObject textGobj = _loadingText.gameObject;
-
-        while (true)
-        {
-            yield return new WaitForSeconds(0.5f);  
-            textGobj.SetActive(false);
-            yield return new WaitForSeconds(0.5f);
-            textGobj.SetActive(true);
-        }
-    }
+	private void Update() {
+		if (_bundlesLoaded && Input.GetKeyUp(KeyCode.Space)) {
+			Application.LoadLevel("PlayScene");
+		}
+	}
 }

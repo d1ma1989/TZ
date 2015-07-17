@@ -1,186 +1,151 @@
 ﻿using UnityEngine;
+
 using System.Collections;
 
-public class GameController : MonoBehaviour
-{
-    [SerializeField]
-    private GUIText _timerText;
+public class GameController : MonoBehaviour {
+	[SerializeField] private GUIText _timerText;
+	[SerializeField] private GUIText _pointsText;
 
-    [SerializeField]
-    private GUIText _pointsText;
+	[SerializeField] private AudioClip _ambientMusicClip;
+	[SerializeField] private AudioClip _difficultyRaisedClip;
+	[SerializeField] private AudioClip _explosionClip;
 
-    //variables for copying loaded resources
-    private GameObject _sphere;
-    private AudioClip _backgroundMusic;
-    private AudioClip _destroySound;
-    private GameObject _explosionPs;
+	private GameObject _sphere;
+	private GameObject _explosionPs;
 
-    private Material _sphereMaterial;
+	private int _points;
 
-    private int _points;
+	private int _difficultyLevel = 1;
 
-    //speed coefficient
-    private int _difficultyLevel = 1;
+	private Color _currentColor;
 
-    private Color _currentColor;
+	private readonly Texture2D[] _textures = new Texture2D[4];
 
-    Texture2D[] _textures = new Texture2D[4];
+	private Camera _mainCamera;
+	private Vector2 _topRightScreenPos;
 
-    private IEnumerator Start()
-    {
-        yield return StartCoroutine(LoadingResources());
+	private IEnumerator Start() {
+		_mainCamera = Camera.main;
 
-        _sphereMaterial = _sphere.renderer.material;
+		yield return StartCoroutine(LoadingResources());
 
-        audio.clip = _backgroundMusic;
-        audio.Play();
+		SoundController.I.PlayAmbient(_ambientMusicClip);
 
-        _sphere.AddComponent<Sphere>();
+		_sphere.AddComponent<Sphere>();
 
-        CreateTextures();
+		CreateTextures();
 
-        StartCoroutine(SpawningSpheres());
-    }
+		_topRightScreenPos = new Vector2(Screen.width, Screen.height);
+		StartCoroutine(SpawningSpheres());
+	}
 
-    private void Update()
-    {
-        //timer
-        _timerText.text = "Time: " + (int)Time.timeSinceLevelLoad;
-    }
+	private IEnumerator LoadingResources() {
+		AssetBundleRequest request = AssetBundleLoader.LoadedBundle.LoadAssetAsync("ExplosionPs", typeof (GameObject));
+		yield return request;
+		_explosionPs = request.asset as GameObject;
 
-    //spawning spheres with delay depending on difficulty
-    private IEnumerator SpawningSpheres()
-    {
-        while (true)
-        {
-            yield return new WaitForSeconds(3f / _difficultyLevel);
-            CreateSphere();
-        }
-    }
+		request = AssetBundleLoader.LoadedBundle.LoadAssetAsync("Sphere", typeof (GameObject));
+		yield return request;
+		_sphere = request.asset as GameObject;
 
-    //create new sphere with random size and color at random position
-    private void CreateSphere()
-    {
-        int randomSize = Random.Range(30, 101);
-        int leftXpos = -300 + (int)(randomSize * 0.5f);
-        int rightXpos = 300 - (int)(randomSize * 0.5f);
-        int randomXpos = Random.Range(leftXpos, rightXpos);
-        _sphere.transform.localScale = new Vector3(randomSize, randomSize, 1);
+		AssetBundleLoader.LoadedBundle.Unload(false);
+	}
 
-        float xScale = _sphere.transform.localScale.x;
+	private IEnumerator SpawningSpheres() {
+		while (true) {
+			yield return new WaitForSeconds(1f);
+			CreateSphere();
+		}
+	}
 
-        if (xScale >= 30 && xScale < 40)
-            _sphereMaterial.mainTexture = _textures[0];
-        else if (xScale >= 40 && xScale < 60)
-            _sphereMaterial.mainTexture = _textures[1];
-        else if (xScale >= 60 && xScale < 80)
-            _sphereMaterial.mainTexture = _textures[2];
-        else if (xScale >= 80 && xScale < 100)
-            _sphereMaterial.mainTexture = _textures[3];
-       
-        GameObject newSphere = Instantiate(_sphere, new Vector3(randomXpos, 300, 500), Quaternion.identity) as GameObject;
-        print(newSphere.renderer.material.mainTexture.height);
+	private void CreateSphere() {
+		int randomSize = Random.Range(30, 100);
+		float halfSize = randomSize * 0.5f;
+		_sphere.transform.localScale = Vector3.one * randomSize;
 
-        Sphere sphereComponent = newSphere.GetComponent<Sphere>();
-        sphereComponent.CalculateSpeedAndPoints(randomSize, _difficultyLevel);
+		float leftXpos = _mainCamera.ScreenToWorldPoint(Vector3.zero).x + halfSize;
+		Vector3 screenToWorldPos = _mainCamera.ScreenToWorldPoint(_topRightScreenPos);
+		float rightXpos = screenToWorldPos.x - halfSize;
+		float yPos = screenToWorldPos.y + halfSize;
+		float randomXpos = Random.Range(leftXpos, rightXpos);
+		GameObject newSphere = Instantiate(_sphere, new Vector3(randomXpos, yPos, 500), Quaternion.identity) as GameObject;
+		
+		Material material = newSphere.GetComponent<Renderer>().material;
+		material.shader = Shader.Find("Unlit/Texture");
+		if (randomSize < 40) {
+			material.mainTexture = _textures[0];
+		} else if (randomSize < 60) {
+			material.mainTexture = _textures[1];
+		} else if (randomSize < 80) {
+			material.mainTexture = _textures[2];
+		} else {
+			material.mainTexture = _textures[3];
+		}
 
-        //when circle is destroyed we made explositon effect
-        sphereComponent.Destroyed += delegate(int points, Vector3 pos)
-        {
-            //play explosion sound
-            AudioSource.PlayClipAtPoint(_destroySound, Vector3.zero);
+		Sphere sphere = newSphere.GetComponent<Sphere>();
+		sphere.Color = _currentColor;
+		sphere.CalculateSpeedAndPoints(randomSize, _difficultyLevel);
+		sphere.Destroyed += OnSphereDestroyed;
+	}
 
-            //instantiate gameObject with explosion particle system
-            _explosionPs.particleSystem.startColor = _currentColor;
-            GameObject explosion = Instantiate(_explosionPs, pos, Quaternion.identity) as GameObject;
-            Destroy(explosion, 1f);
+	private void OnSphereDestroyed(int points, Vector3 pos, Color color) {
+		_explosionPs.GetComponent<ParticleSystem>().startColor = color;
+		GameObject explosion = Instantiate(_explosionPs, pos, Quaternion.identity) as GameObject;
+		Destroy(explosion, 1f);
+		SoundController.I.PlayEffect(_explosionClip);
 
-            //give points and increase game difficulty
-            Points += points;
+		AddPoints(points);
 
-            int newDifficulty = Points / 100 + 1;
-            if (newDifficulty > _difficultyLevel)
-            {
-                _difficultyLevel = newDifficulty;
-                CreateTextures();
-            }
-        };
-    }
+		int newDifficultyLevel = _points / 100 + 1;
+		if (_difficultyLevel != newDifficultyLevel) {
+			_difficultyLevel = newDifficultyLevel;
+			SoundController.I.PlayEffect(_difficultyRaisedClip);
+			CreateTextures();
+		}
+	}
 
-    private int Points
-    {
-        get { return _points; }
+	private void AddPoints(int points) {
+		_points += points;
+		_pointsText.text = string.Format("Points: {0}", _points);
+	}
 
-        set
-        { 
-            _points = value;
-            _pointsText.text = "Points: " + _points;
-        }
-    }
+	private void CreateTextures() {
+		_currentColor = MakeRandomColor();
 
-    private static Color MakeRandomColor()
-    {
-        float r = Random.Range(0f, 1f);
-        float g = Random.Range(0f, 1f);
-        float b = Random.Range(0f, 1f);
+		_textures[0] = new Texture2D(32, 32, TextureFormat.ARGB32, false);
+		_textures[1] = new Texture2D(64, 64, TextureFormat.ARGB32, false);
+		_textures[2] = new Texture2D(128, 128, TextureFormat.ARGB32, false);
+		_textures[3] = new Texture2D(256, 256, TextureFormat.ARGB32, false);
 
-        Color randomColor = new Color(r, g, b);
+		foreach (Texture2D texture in _textures) {
+			int y = 0;
+			while (y < texture.height) {
+				int x = 0;
+				while (x < texture.width) {
+					if (x == y || x + y == texture.height) {
+						texture.SetPixel(x, y, Color.black);
+					} else {
+						texture.SetPixel(x, y, _currentColor);
+					}
 
-        return randomColor;
-    }
+					x++;
+				}
+				y++;
+			}
+			texture.Apply();
+		}
+	}
 
-    //Loading objects from an AssetBundles asynchronously
-    private IEnumerator LoadingResources()
-    {
-        AssetBundleRequest request = AssetBundleLoader.LoadedBundle.LoadAsync("ExplosionPs", typeof(GameObject));
-        yield return request;
-        _explosionPs = request.asset as GameObject;
+	private static Color MakeRandomColor() {
+		const float min = 0.3f;
+		const float max = 1f;
+		float r = Random.Range(min, max);
+		float g = Random.Range(min, max);
+		float b = Random.Range(min, max);
+		return new Color(r, g, b);
+	}
 
-        request = AssetBundleLoader.LoadedBundle.LoadAsync("Blast", typeof(AudioClip));
-        yield return request;
-        _destroySound = request.asset as AudioClip;
-
-        request = AssetBundleLoader.LoadedBundle.LoadAsync("Sphere", typeof(GameObject));
-        yield return request;
-        _sphere = request.asset as GameObject;
-
-        request = AssetBundleLoader.LoadedBundle.LoadAsync("Mario", typeof(AudioClip));
-        yield return request;
-        _backgroundMusic = request.asset as AudioClip;
-
-        AssetBundleLoader.LoadedBundle.Unload(false);
-
-        yield return new WaitForEndOfFrame();
-    }
-
-    private void CreateTextures()
-    {
-        _currentColor = MakeRandomColor();
-        print(_currentColor);
-
-        _textures[0] = new Texture2D(32, 32, TextureFormat.ARGB32, false);
-        _textures[1] = new Texture2D(64, 64, TextureFormat.ARGB32, false);
-        _textures[2] = new Texture2D(128, 128, TextureFormat.ARGB32, false);
-        _textures[3] = new Texture2D(256, 256, TextureFormat.ARGB32, false);
-
-        foreach (Texture2D texture in _textures)
-        {
-            int y = 0;
-            while (y < texture.height)
-            {
-                int x = 0;
-                while (x < texture.width)
-                {
-                    if (x == y || x + y == texture.height)
-                        texture.SetPixel(x, y, Color.black);
-                    else
-                        texture.SetPixel(x, y, _currentColor);
-
-                    x++;
-                }
-                y++;
-            }
-            texture.Apply();
-        }
-    }
+	private void Update() {
+		_timerText.text = string.Format("Time: {0}", (int)Time.timeSinceLevelLoad);
+	}
 }
