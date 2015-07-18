@@ -7,8 +7,6 @@ public class GameController : MonoBehaviour {
 	[SerializeField] private GUIText _pointsText;
 
 	[SerializeField] private AudioClip _ambientMusicClip;
-	[SerializeField] private AudioClip _difficultyRaisedClip;
-	[SerializeField] private AudioClip _explosionClip;
 
 	private GameObject _sphere;
 	private GameObject _explosionPs;
@@ -37,6 +35,14 @@ public class GameController : MonoBehaviour {
 
 		_topRightScreenPos = new Vector2(Screen.width, Screen.height);
 		StartCoroutine(SpawningSpheres());
+		StartCoroutine(UpdateTimer());
+	}
+
+	private IEnumerator UpdateTimer() {
+		while (true) {
+			_timerText.text = string.Format("Time: {0}", (int)Time.timeSinceLevelLoad);
+			yield return new WaitForSeconds(1f);
+		}
 	}
 
 	private IEnumerator LoadingResources() {
@@ -53,7 +59,7 @@ public class GameController : MonoBehaviour {
 
 	private IEnumerator SpawningSpheres() {
 		while (true) {
-			yield return new WaitForSeconds(1f);
+			yield return new WaitForSeconds(1f - _difficultyLevel * 0.05f );
 			CreateSphere();
 		}
 	}
@@ -92,19 +98,19 @@ public class GameController : MonoBehaviour {
 		_explosionPs.GetComponent<ParticleSystem>().startColor = color;
 		GameObject explosion = Instantiate(_explosionPs, pos, Quaternion.identity) as GameObject;
 		Destroy(explosion, 1f);
-		SoundController.I.PlayEffect(_explosionClip);
+		SoundController.I.PlayExplosion();
 
-		AddPoints(points);
+		ChangePoints(points);
 
 		int newDifficultyLevel = _points / 100 + 1;
 		if (_difficultyLevel != newDifficultyLevel) {
 			_difficultyLevel = newDifficultyLevel;
-			SoundController.I.PlayEffect(_difficultyRaisedClip);
+			SoundController.I.PlayLevelRaised();
 			CreateTextures();
 		}
 	}
 
-	private void AddPoints(int points) {
+	private void ChangePoints(int points) {
 		_points += points;
 		_pointsText.text = string.Format("Points: {0}", _points);
 	}
@@ -143,9 +149,5 @@ public class GameController : MonoBehaviour {
 		float g = Random.Range(min, max);
 		float b = Random.Range(min, max);
 		return new Color(r, g, b);
-	}
-
-	private void Update() {
-		_timerText.text = string.Format("Time: {0}", (int)Time.timeSinceLevelLoad);
 	}
 }

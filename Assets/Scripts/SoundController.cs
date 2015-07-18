@@ -2,7 +2,8 @@
 
 public class SoundController : MonoBehaviour {
 	[SerializeField] private AudioSource _ambientMusicSource;
-	[SerializeField] private AudioSource[] _effectsSources;
+	[SerializeField] private AudioSource _explosionAudioSource;
+	[SerializeField] private AudioSource _levelRaisedAudioSource;
 
 	public static SoundController I { get; private set; }
 
@@ -17,15 +18,11 @@ public class SoundController : MonoBehaviour {
 		_ambientMusicSource.Play();
 	}
 
-	public void PlayEffect(AudioClip clip) {
-		foreach (AudioSource audioSource in _effectsSources) {
-			if (!audioSource.isPlaying) {
-				audioSource.clip = clip;
-				audioSource.Play();
-				return;
-			}
-		}
-		_effectsSources[0].clip = clip;
-		_effectsSources[0].Play();
+	public void PlayExplosion() {
+		_explosionAudioSource.Play();
+	}
+
+	public void PlayLevelRaised() {
+		_levelRaisedAudioSource.Play();
 	}
 }
